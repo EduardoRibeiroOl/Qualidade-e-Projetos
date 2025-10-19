@@ -11,7 +11,8 @@ function createWindow() {
   });
 
   // Carrega o seu front-end (pode ser React ou HTML direto)
-  win.loadFile('renderer/index.html');
+  win.loadURL("http://localhost:5173")
+  //win.loadFile('../frontend/frontend/index.html');
 
   // Abre o DevTools (para desenvolvimento)
   win.webContents.openDevTools();

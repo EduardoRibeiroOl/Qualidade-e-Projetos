@@ -1,3 +1,7 @@
+import { BrowserRouter as Router, Routes, Route, Link } from "react-router-dom"
+import Home from "./pages/Home.tsx"
+import Dashboard from "./pages/Dashboard.tsx"
+
 import { useState } from 'react'
 import reactLogo from './assets/react.svg'
 import viteLogo from '/vite.svg'
@@ -28,6 +32,19 @@ function App() {
       <p className="read-the-docs">
         Click on the Vite and React logos to learn more
       </p>
+
+      
+      <Router>
+      <nav style={{ padding: "1rem", background: "#222" }}>
+        <Link to="/" style={{ color: "#fff", marginRight: "1rem" }}>🏠 Início</Link>
+        <Link to="/dashboard" style={{ color: "#fff" }}>📊 Dashboard</Link>
+      </nav>
+
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/dashboard" element={<Dashboard />} />
+      </Routes>
+    </Router>
     </>
   )
 }
