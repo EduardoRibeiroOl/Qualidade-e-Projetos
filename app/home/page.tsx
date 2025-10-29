@@ -1,7 +1,13 @@
-export default function home(){
-    return(
-        <>
-            <p>home</p>
-        </>
-    )
+"use client"
+import Teste from "@/components/teste.tsx"
+
+export default function Home() {
+  
+  return (
+  <>
+    <Teste/>
+  </>
+  )
 }
+
+
