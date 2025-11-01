@@ -1,328 +1,575 @@
 "use client"
 
+import type React from "react"
+
+import {
+  ArrowUpRight,
+  ArrowDownRight,
+  TrendingUp,
+  Wallet,
+  PieChart,
+  CreditCard,
+  Plus,
+  Search,
+  Bell,
+  Settings,
+  Home,
+  BarChart3,
+  Target,
+  Menu,
+  Edit2,
+  Trash2,
+  GripVertical,
+  X,
+} from "lucide-react"
 import { useState } from "react"
-import { motion } from "framer-motion"
 
-const colorPresets = [
-  { name: "Blue", primary: "oklch(0.45 0.15 250)", accent: "oklch(0.55 0.18 250)" },
-  { name: "Purple", primary: "oklch(0.45 0.15 290)", accent: "oklch(0.55 0.18 290)" },
-  { name: "Green", primary: "oklch(0.45 0.15 150)", accent: "oklch(0.55 0.18 150)" },
-  { name: "Orange", primary: "oklch(0.50 0.15 50)", accent: "oklch(0.60 0.18 50)" },
-  { name: "Pink", primary: "oklch(0.50 0.15 350)", accent: "oklch(0.60 0.18 350)" },
-  { name: "Teal", primary: "oklch(0.45 0.15 200)", accent: "oklch(0.55 0.18 200)" },
-]
+type Transaction = {
+  id: string
+  name: string
+  amount: number
+  date: string
+  category: string
+  type: "income" | "expense"
+}
 
-export default function SettingsPage() {
-  const [activeTab, setActiveTab] = useState("appearance")
-  const [selectedColor, setSelectedColor] = useState(colorPresets[0])
-  const [darkMode, setDarkMode] = useState(false)
-  const [notifications, setNotifications] = useState({
-    email: true,
-    push: true,
-    desktop: false,
+type DashboardBlock = {
+  id: string
+  type: "overview" | "spending" | "transactions" | "budget"
+  order: number
+}
+
+export default function HomePage() {
+  const [showAddTransaction, setShowAddTransaction] = useState(false)
+  const [editingBalance, setEditingBalance] = useState(false)
+  const [balance, setBalance] = useState(24582.5)
+  const [income, setIncome] = useState(8420.0)
+  const [expenses, setExpenses] = useState(3240.8)
+  const [monthlyBudget, setMonthlyBudget] = useState(5000.0)
+  const [editingBudget, setEditingBudget] = useState(false)
+  const [tempBudget, setTempBudget] = useState("")
+
+  const [transactions, setTransactions] = useState<Transaction[]>([
+    {
+      id: "1",
+      name: "Grocery Store",
+      amount: 85.4,
+      date: "Today, 2:30 PM",
+      category: "Food & Dining",
+      type: "expense",
+    },
+    { id: "2", name: "Salary Deposit", amount: 4200.0, date: "Yesterday, 9:00 AM", category: "Income", type: "income" },
+    {
+      id: "3",
+      name: "Netflix Subscription",
+      amount: 15.99,
+      date: "2 days ago",
+      category: "Entertainment",
+      type: "expense",
+    },
+    { id: "4", name: "Gas Station", amount: 52.3, date: "3 days ago", category: "Transportation", type: "expense" },
+  ])
+
+  const [newTransaction, setNewTransaction] = useState({
+    name: "",
+    amount: "",
+    category: "",
+    type: "expense" as "income" | "expense",
   })
-  const [language, setLanguage] = useState("en")
-  const [fontSize, setFontSize] = useState("medium")
 
-  const tabs = [
-    { id: "appearance", label: "Appearance", icon: "🎨" },
-    { id: "notifications", label: "Notifications", icon: "🔔" },
-    { id: "account", label: "Account", icon: "👤" },
-    { id: "preferences", label: "Preferences", icon: "⚙️" },
-  ]
+  const [blocks, setBlocks] = useState<DashboardBlock[]>([
+    { id: "overview", type: "overview", order: 0 },
+    { id: "spending", type: "spending", order: 1 },
+    { id: "transactions", type: "transactions", order: 2 },
+    { id: "budget", type: "budget", order: 3 },
+  ])
 
-  const applyColorTheme = (preset: (typeof colorPresets)[0]) => {
-    setSelectedColor(preset)
-    document.documentElement.style.setProperty("--primary", preset.primary)
-    document.documentElement.style.setProperty("--sidebar-primary", preset.accent)
+  const [draggedBlock, setDraggedBlock] = useState<string | null>(null)
+
+  const handleAddTransaction = () => {
+    if (!newTransaction.name || !newTransaction.amount || !newTransaction.category) return
+
+    const transaction: Transaction = {
+      id: Date.now().toString(),
+      name: newTransaction.name,
+      amount: Number.parseFloat(newTransaction.amount),
+      date: "Just now",
+      category: newTransaction.category,
+      type: newTransaction.type,
+    }
+
+    setTransactions([transaction, ...transactions])
+
+    if (transaction.type === "expense") {
+      setExpenses(expenses + transaction.amount)
+    } else {
+      setIncome(income + transaction.amount)
+    }
+
+    setNewTransaction({ name: "", amount: "", category: "", type: "expense" })
+    setShowAddTransaction(false)
   }
 
-  const toggleDarkMode = () => {
-    setDarkMode(!darkMode)
-    document.documentElement.classList.toggle("dark")
+  const handleDeleteTransaction = (id: string) => {
+    const transaction = transactions.find((t) => t.id === id)
+    if (!transaction) return
+
+    if (transaction.type === "expense") {
+      setExpenses(expenses - transaction.amount)
+    } else {
+      setIncome(income - transaction.amount)
+    }
+
+    setTransactions(transactions.filter((t) => t.id !== id))
+  }
+
+  const handleDragStart = (blockId: string) => {
+    setDraggedBlock(blockId)
+  }
+
+  const handleDragOver = (e: React.DragEvent, targetBlockId: string) => {
+    e.preventDefault()
+    if (!draggedBlock || draggedBlock === targetBlockId) return
+
+    const newBlocks = [...blocks]
+    const draggedIndex = newBlocks.findIndex((b) => b.id === draggedBlock)
+    const targetIndex = newBlocks.findIndex((b) => b.id === targetBlockId)
+
+    const [removed] = newBlocks.splice(draggedIndex, 1)
+    newBlocks.splice(targetIndex, 0, removed)
+
+    newBlocks.forEach((block, index) => {
+      block.order = index
+    })
+
+    setBlocks(newBlocks)
+  }
+
+  const handleDragEnd = () => {
+    setDraggedBlock(null)
+  }
+
+  const handleSaveBudget = () => {
+    const newBudget = Number.parseFloat(tempBudget)
+    if (!isNaN(newBudget) && newBudget > 0) {
+      setMonthlyBudget(newBudget)
+    }
+    setEditingBudget(false)
+    setTempBudget("")
+  }
+
+  const budgetPercentage = (expenses / monthlyBudget) * 100
+  const budgetRemaining = monthlyBudget - expenses
+
+  const sortedBlocks = [...blocks].sort((a, b) => a.order - b.order)
+
+  const renderBlock = (block: DashboardBlock) => {
+    switch (block.type) {
+      case "overview":
+        return (
+          <div className="grid md:grid-cols-3 gap-6">
+            <div className="p-6 space-y-4 bg-card text-card-foreground rounded-lg border border-border shadow-lg">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Total Balance</span>
+                <Wallet className="h-4 w-4 text-muted-foreground" />
+              </div>
+              <div className="space-y-1">
+                <div className="text-3xl font-bold">${balance.toFixed(2)}</div>
+                <div className="flex items-center gap-1 text-sm text-green-600">
+                  <ArrowUpRight className="h-3 w-3" />
+                  <span>+12.5% from last month</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-6 space-y-4 bg-card text-card-foreground rounded-lg border border-border shadow-lg">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Income</span>
+                <TrendingUp className="h-4 w-4 text-muted-foreground" />
+              </div>
+              <div className="space-y-1">
+                <div className="text-3xl font-bold">${income.toFixed(2)}</div>
+                <div className="flex items-center gap-1 text-sm text-green-600">
+                  <ArrowUpRight className="h-3 w-3" />
+                  <span>+8.2% from last month</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-6 space-y-4 bg-card text-card-foreground rounded-lg border border-border shadow-lg">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Expenses</span>
+                <CreditCard className="h-4 w-4 text-muted-foreground" />
+              </div>
+              <div className="space-y-1">
+                <div className="text-3xl font-bold">${expenses.toFixed(2)}</div>
+                <div className="flex items-center gap-1 text-sm text-red-600">
+                  <ArrowDownRight className="h-3 w-3" />
+                  <span>+5.4% from last month</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )
+
+      case "spending":
+        return (
+          <div className="p-6 space-y-4 bg-card text-card-foreground rounded-lg border border-border shadow-lg">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold">Spending Overview</h2>
+              <button className="px-4 py-2 rounded-lg hover:bg-accent" size="sm">
+                View All
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Food & Dining</span>
+                  <span className="font-medium">$840.50</span>
+                </div>
+                <div className="h-2 bg-muted rounded-full overflow-hidden">
+                  <div className="h-full bg-foreground rounded-full" style={{ width: "65%" }} />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Transportation</span>
+                  <span className="font-medium">$520.30</span>
+                </div>
+                <div className="h-2 bg-muted rounded-full overflow-hidden">
+                  <div className="h-full bg-foreground rounded-full" style={{ width: "45%" }} />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Shopping</span>
+                  <span className="font-medium">$680.20</span>
+                </div>
+                <div className="h-2 bg-muted rounded-full overflow-hidden">
+                  <div className="h-full bg-foreground rounded-full" style={{ width: "55%" }} />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Entertainment</span>
+                  <span className="font-medium">$320.80</span>
+                </div>
+                <div className="h-2 bg-muted rounded-full overflow-hidden">
+                  <div className="h-full bg-foreground rounded-full" style={{ width: "30%" }} />
+                </div>
+              </div>
+            </div>
+          </div>
+        )
+
+      case "transactions":
+        return (
+          <div className="p-6 space-y-4 bg-card text-card-foreground rounded-lg border border-border shadow-lg">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold">Recent Transactions</h2>
+              <button className="px-4 py-2 rounded-lg hover:bg-accent" size="sm">
+                View All
+              </button>
+            </div>
+            <div className="space-y-4">
+              {transactions.slice(0, 4).map((transaction) => (
+                <div key={transaction.id} className="flex items-center justify-between group">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
+                      {transaction.type === "income" ? (
+                        <TrendingUp className="h-4 w-4" />
+                      ) : (
+                        <Wallet className="h-4 w-4" />
+                      )}
+                    </div>
+                    <div>
+                      <div className="font-medium text-sm">{transaction.name}</div>
+                      <div className="text-xs text-muted-foreground">{transaction.date}</div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div
+                      className={`text-sm font-medium ${transaction.type === "income" ? "text-green-600" : "text-red-600"}`}
+                    >
+                      {transaction.type === "income" ? "+" : "-"}${transaction.amount.toFixed(2)}
+                    </div>
+                    <button
+                      className="p-2 rounded-lg hover:bg-accent"
+                      size="icon"
+                      className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={() => handleDeleteTransaction(transaction.id)}
+                    >
+                      <Trash2 className="h-4 w-4 text-red-600" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )
+
+      case "budget":
+        return (
+          <div className="p-6 space-y-4 bg-card text-card-foreground rounded-lg border border-border shadow-lg">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold">Monthly Budget</h2>
+              <button
+                className="px-4 py-2 rounded-lg hover:bg-accent"
+                size="sm"
+                onClick={() => {
+                  setEditingBudget(true)
+                  setTempBudget(monthlyBudget.toString())
+                }}
+              >
+                <Edit2 className="h-4 w-4" />
+              </button>
+            </div>
+            {editingBudget ? (
+              <div className="space-y-3">
+                <div className="flex gap-2">
+                  <input
+                    type="number"
+                    value={tempBudget}
+                    onChange={(e) => setTempBudget(e.target.value)}
+                    className="flex-1 px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-foreground/20"
+                    placeholder="Enter budget amount"
+                  />
+                  <button
+                    onClick={handleSaveBudget}
+                    size="sm"
+                    className="px-4 py-2 rounded-lg bg-primary text-primary-foreground"
+                  >
+                    Save
+                  </button>
+                  <button
+                    onClick={() => {
+                      setEditingBudget(false)
+                      setTempBudget("")
+                    }}
+                    className="px-4 py-2 rounded-lg border border-border hover:bg-accent"
+                    variant="ghost"
+                    size="sm"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">
+                    ${expenses.toFixed(2)} of ${monthlyBudget.toFixed(2)} spent
+                  </span>
+                  <span className="font-medium">{budgetPercentage.toFixed(1)}%</span>
+                </div>
+                <div className="h-3 bg-muted rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-foreground rounded-full transition-all"
+                    style={{ width: `${Math.min(budgetPercentage, 100)}%` }}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  You have ${budgetRemaining.toFixed(2)} left to spend this month
+                </p>
+              </div>
+            )}
+          </div>
+        )
+    }
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 p-4 md:p-8">
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="max-w-6xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <motion.h1
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="text-4xl font-bold text-slate-800 dark:text-white mb-2"
-          >
+    <div className="min-h-screen bg-background flex">
+      {/* Sidebar */}
+      <aside className="hidden md:flex w-64 border-r border-border flex-col">
+        <div className="p-6 border-b border-border">
+          <div className="text-2xl font-bold tracking-tight">CELENIUM</div>
+        </div>
+        <nav className="flex-1 p-4 space-y-2">
+          <button className="w-full justify-start gap-3 px-4 py-2 rounded-lg bg-secondary text-secondary-foreground flex items-center">
+            <Home className="h-4 w-4" />
+            Dashboard
+          </button>
+          <button className="w-full justify-start gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground flex items-center">
+            <Wallet className="h-4 w-4" />
+            Transactions
+          </button>
+          <button className="w-full justify-start gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground flex items-center">
+            <PieChart className="h-4 w-4" />
+            Budgets
+          </button>
+          <button className="w-full justify-start gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground flex items-center">
+            <Target className="h-4 w-4" />
+            Goals
+          </button>
+          <button className="w-full justify-start gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground flex items-center">
+            <BarChart3 className="h-4 w-4" />
+            Analytics
+          </button>
+          <button className="w-full justify-start gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground flex items-center">
+            <CreditCard className="h-4 w-4" />
+            Accounts
+          </button>
+        </nav>
+        <div className="p-4 border-t border-border">
+          <button className="w-full justify-start gap-3 px-4 py-2 rounded-lg hover:bg-accent hover:text-accent-foreground flex items-center">
+            <Settings className="h-4 w-4" />
             Settings
-          </motion.h1>
-          <motion.p
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.1 }}
-            className="text-slate-600 dark:text-slate-400"
-          >
-            Customize your workspace and preferences
-          </motion.p>
+          </button>
         </div>
+      </aside>
 
-        <div className="flex flex-col lg:flex-row gap-6">
-          {/* Sidebar Tabs */}
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.2 }}
-            className="lg:w-64 flex-shrink-0"
-          >
-            <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl rounded-3xl p-2 shadow-lg border border-slate-200/50 dark:border-slate-700/50">
-              {tabs.map((tab, index) => (
-                <motion.button
-                  key={tab.id}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.1 * index }}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 ${
-                    activeTab === tab.id
-                      ? "bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-lg"
-                      : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700/50"
-                  }`}
+      {/* Main Content */}
+      <main className="flex-1 overflow-auto">
+        {/* Header */}
+        <header className="border-b border-border bg-background sticky top-0 z-10">
+          <div className="px-6 py-4 flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <button className="md:hidden p-2 rounded-lg hover:bg-accent">
+                <Menu className="h-5 w-5" />
+              </button>
+              <div>
+                <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
+                <p className="text-sm text-muted-foreground">Welcome back, User</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="relative hidden md:block">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <input
+                  type="text"
+                  placeholder="Search transactions..."
+                  className="pl-10 pr-4 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-foreground/20 w-64"
+                />
+              </div>
+              <button className="p-2 rounded-lg hover:bg-accent">
+                <Bell className="h-5 w-5" />
+              </button>
+              <button
+                className="px-4 py-2 rounded-lg bg-primary text-primary-foreground flex items-center gap-2"
+                onClick={() => setShowAddTransaction(true)}
+              >
+                <Plus className="h-4 w-4" />
+                Add Transaction
+              </button>
+            </div>
+          </div>
+        </header>
+
+        <div className="p-6 space-y-6">
+          {sortedBlocks.map((block) => (
+            <div
+              key={block.id}
+              draggable
+              onDragStart={() => handleDragStart(block.id)}
+              onDragOver={(e) => handleDragOver(e, block.id)}
+              onDragEnd={handleDragEnd}
+              className="cursor-move group relative"
+            >
+              <div className="absolute -left-4 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
+                <GripVertical className="h-5 w-5 text-muted-foreground" />
+              </div>
+              {renderBlock(block)}
+            </div>
+          ))}
+        </div>
+      </main>
+
+      {showAddTransaction && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="w-full max-w-md p-6 space-y-4 bg-card text-card-foreground rounded-lg border border-border shadow-lg">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-semibold">Add Transaction</h2>
+              <button className="p-2 rounded-lg hover:bg-accent" onClick={() => setShowAddTransaction(false)}>
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Name</label>
+                <input
+                  type="text"
+                  value={newTransaction.name}
+                  onChange={(e) => setNewTransaction({ ...newTransaction, name: e.target.value })}
+                  className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-foreground/20"
+                  placeholder="Transaction name"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Amount</label>
+                <input
+                  type="number"
+                  value={newTransaction.amount}
+                  onChange={(e) => setNewTransaction({ ...newTransaction, amount: e.target.value })}
+                  className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-foreground/20"
+                  placeholder="0.00"
+                  step="0.01"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Category</label>
+                <select
+                  value={newTransaction.category}
+                  onChange={(e) => setNewTransaction({ ...newTransaction, category: e.target.value })}
+                  className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-foreground/20"
                 >
-                  <span className="text-xl">{tab.icon}</span>
-                  <span className="font-medium">{tab.label}</span>
-                </motion.button>
-              ))}
+                  <option value="">Select category</option>
+                  <option value="Food & Dining">Food & Dining</option>
+                  <option value="Transportation">Transportation</option>
+                  <option value="Shopping">Shopping</option>
+                  <option value="Entertainment">Entertainment</option>
+                  <option value="Income">Income</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Type</label>
+                <div className="flex gap-2">
+                  <button
+                    className={`flex-1 px-4 py-2 rounded-lg ${
+                      newTransaction.type === "expense"
+                        ? "bg-primary text-primary-foreground"
+                        : "border border-border hover:bg-accent"
+                    }`}
+                    onClick={() => setNewTransaction({ ...newTransaction, type: "expense" })}
+                  >
+                    Expense
+                  </button>
+                  <button
+                    className={`flex-1 px-4 py-2 rounded-lg ${
+                      newTransaction.type === "income"
+                        ? "bg-primary text-primary-foreground"
+                        : "border border-border hover:bg-accent"
+                    }`}
+                    onClick={() => setNewTransaction({ ...newTransaction, type: "income" })}
+                  >
+                    Income
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  onClick={handleAddTransaction}
+                  className="flex-1 px-4 py-2 rounded-lg bg-primary text-primary-foreground"
+                >
+                  Add Transaction
+                </button>
+                <button
+                  onClick={() => setShowAddTransaction(false)}
+                  className="flex-1 px-4 py-2 rounded-lg border border-border hover:bg-accent"
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
-          </motion.div>
-
-          {/* Content Area */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            className="flex-1"
-          >
-            <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl rounded-3xl p-6 md:p-8 shadow-lg border border-slate-200/50 dark:border-slate-700/50">
-              {/* Appearance Tab */}
-              {activeTab === "appearance" && (
-                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-8">
-                  <div>
-                    <h2 className="text-2xl font-bold text-slate-800 dark:text-white mb-6">Appearance</h2>
-
-                    {/* Dark Mode Toggle */}
-                    <div className="mb-8">
-                      <label className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-700/50 rounded-2xl cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
-                        <div className="flex items-center gap-3">
-                          <span className="text-2xl">🌙</span>
-                          <div>
-                            <div className="font-semibold text-slate-800 dark:text-white">Dark Mode</div>
-                            <div className="text-sm text-slate-600 dark:text-slate-400">
-                              Switch between light and dark themes
-                            </div>
-                          </div>
-                        </div>
-                        <button
-                          onClick={toggleDarkMode}
-                          className={`relative w-14 h-8 rounded-full transition-colors ${
-                            darkMode ? "bg-blue-500" : "bg-slate-300"
-                          }`}
-                        >
-                          <motion.div
-                            animate={{ x: darkMode ? 24 : 2 }}
-                            transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                            className="absolute top-1 w-6 h-6 bg-white rounded-full shadow-md"
-                          />
-                        </button>
-                      </label>
-                    </div>
-
-                    {/* Color Theme */}
-                    <div>
-                      <h3 className="text-lg font-semibold text-slate-800 dark:text-white mb-4">Color Theme</h3>
-                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                        {colorPresets.map((preset, index) => (
-                          <motion.button
-                            key={preset.name}
-                            initial={{ opacity: 0, scale: 0.8 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            transition={{ delay: 0.05 * index }}
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.95 }}
-                            onClick={() => applyColorTheme(preset)}
-                            className={`p-4 rounded-2xl border-2 transition-all ${
-                              selectedColor.name === preset.name
-                                ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20"
-                                : "border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600"
-                            }`}
-                          >
-                            <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-xl shadow-md" style={{ background: preset.primary }} />
-                              <span className="font-medium text-slate-800 dark:text-white">{preset.name}</span>
-                            </div>
-                          </motion.button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Font Size */}
-                    <div className="mt-8">
-                      <h3 className="text-lg font-semibold text-slate-800 dark:text-white mb-4">Font Size</h3>
-                      <div className="flex gap-3">
-                        {["small", "medium", "large"].map((size) => (
-                          <button
-                            key={size}
-                            onClick={() => setFontSize(size)}
-                            className={`flex-1 py-3 px-4 rounded-2xl font-medium transition-all ${
-                              fontSize === size
-                                ? "bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-lg"
-                                : "bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600"
-                            }`}
-                          >
-                            {size.charAt(0).toUpperCase() + size.slice(1)}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </motion.div>
-              )}
-
-              {/* Notifications Tab */}
-              {activeTab === "notifications" && (
-                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
-                  <h2 className="text-2xl font-bold text-slate-800 dark:text-white mb-6">Notifications</h2>
-
-                  {Object.entries(notifications).map(([key, value], index) => (
-                    <motion.label
-                      key={key}
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: 0.1 * index }}
-                      className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-700/50 rounded-2xl cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-                    >
-                      <div className="flex items-center gap-3">
-                        <span className="text-2xl">{key === "email" ? "📧" : key === "push" ? "📱" : "💻"}</span>
-                        <div>
-                          <div className="font-semibold text-slate-800 dark:text-white capitalize">
-                            {key} Notifications
-                          </div>
-                          <div className="text-sm text-slate-600 dark:text-slate-400">
-                            Receive notifications via {key}
-                          </div>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => setNotifications({ ...notifications, [key]: !value })}
-                        className={`relative w-14 h-8 rounded-full transition-colors ${
-                          value ? "bg-blue-500" : "bg-slate-300"
-                        }`}
-                      >
-                        <motion.div
-                          animate={{ x: value ? 24 : 2 }}
-                          transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                          className="absolute top-1 w-6 h-6 bg-white rounded-full shadow-md"
-                        />
-                      </button>
-                    </motion.label>
-                  ))}
-                </motion.div>
-              )}
-
-              {/* Account Tab */}
-              {activeTab === "account" && (
-                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
-                  <h2 className="text-2xl font-bold text-slate-800 dark:text-white mb-6">Account</h2>
-
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                        Full Name
-                      </label>
-                      <input
-                        type="text"
-                        defaultValue="Eduardo Silva"
-                        className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Email</label>
-                      <input
-                        type="email"
-                        defaultValue="eduardo@example.com"
-                        className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                        Password
-                      </label>
-                      <input
-                        type="password"
-                        defaultValue="••••••••"
-                        className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white"
-                      />
-                    </div>
-
-                    <motion.button
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      className="w-full py-3 bg-gradient-to-r from-blue-500 to-indigo-500 text-white font-semibold rounded-2xl shadow-lg hover:shadow-xl transition-all"
-                    >
-                      Save Changes
-                    </motion.button>
-                  </div>
-                </motion.div>
-              )}
-
-              {/* Preferences Tab */}
-              {activeTab === "preferences" && (
-                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
-                  <h2 className="text-2xl font-bold text-slate-800 dark:text-white mb-6">Preferences</h2>
-
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                      Language
-                    </label>
-                    <select
-                      value={language}
-                      onChange={(e) => setLanguage(e.target.value)}
-                      className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white"
-                    >
-                      <option value="en">English</option>
-                      <option value="pt">Português</option>
-                      <option value="es">Español</option>
-                      <option value="fr">Français</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                      Timezone
-                    </label>
-                    <select className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white">
-                      <option>UTC-3 (Brasília)</option>
-                      <option>UTC-5 (New York)</option>
-                      <option>UTC+0 (London)</option>
-                      <option>UTC+1 (Paris)</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                      Date Format
-                    </label>
-                    <select className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-800 dark:text-white">
-                      <option>DD/MM/YYYY</option>
-                      <option>MM/DD/YYYY</option>
-                      <option>YYYY-MM-DD</option>
-                    </select>
-                  </div>
-                </motion.div>
-              )}
-            </div>
-          </motion.div>
+          </div>
         </div>
-      </motion.div>
+      )}
     </div>
   )
 }

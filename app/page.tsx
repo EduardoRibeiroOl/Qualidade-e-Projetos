@@ -4,20 +4,19 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 
 export default function Start() {
-  const [animationPhase, setAnimationPhase] = useState<"start" | "transition" | "expand" | "complete">("start")
+  const [animationPhase, setAnimationPhase] = useState<"start" | "transition" | "expand">("start")
   const [loopCount, setLoopCount] = useState(0)
-  const [showContent, setShowContent] = useState(false)
   const router = useRouter()
 
   useEffect(() => {
-    if (showContent) {
+    if (animationPhase === "expand") {
       const timer = setTimeout(() => {
         router.push("/home")
-      }, 5000) // 5 seconds delay
+      }, 1000)
 
       return () => clearTimeout(timer)
     }
-  }, [showContent, router])
+  }, [animationPhase, router])
 
   const handleAnimationComplete = () => {
     if (animationPhase === "start") {
@@ -28,23 +27,7 @@ export default function Start() {
       }
     } else if (animationPhase === "transition") {
       setAnimationPhase("expand")
-    } else if (animationPhase === "expand") {
-      setAnimationPhase("complete")
-      setShowContent(true)
     }
-  }
-
-  if (showContent) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <h1 className="text-4xl font-bold tracking-tight">
-            Welcome to <span className="text-primary">CELENIUM</span>
-          </h1>
-          <p className="text-muted-foreground text-lg">Your journey begins here</p>
-        </div>
-      </div>
-    )
   }
 
   const container = {
@@ -97,11 +80,11 @@ export default function Start() {
     },
     transition: {
       opacity: [0, 1, 1],
-      scale: [0.8, 1, 1],
+      scale: [0.95, 1, 1],
     },
     expand: {
       opacity: 0,
-      scale: 0.8,
+      scale: 0.95,
     },
   }
 
@@ -111,7 +94,7 @@ export default function Start() {
       animate={{
         backgroundColor: ["#000000", "#1a2332", "#1a2332", "#0a0e27"],
       }}
-      transition={{ duration: 4 }}
+      transition={{ duration: 5, ease: "easeInOut" }}
     >
       <motion.div
         key={animationPhase + loopCount}
@@ -120,10 +103,11 @@ export default function Start() {
         animate={animationPhase}
         transition={
           animationPhase === "start"
-            ? { duration: 2, ease: "easeInOut", times: [0, 0.5, 0.75, 1] }
+            ? // Smoother easing for rotation
+              { duration: 2.5, ease: [0.22, 1, 0.36, 1], times: [0, 0.5, 0.75, 1] }
             : animationPhase === "transition"
-              ? { duration: 1, ease: "easeInOut" }
-              : { duration: 0.5, ease: "easeOut" }
+              ? { duration: 1.2, ease: [0.22, 1, 0.36, 1] }
+              : { duration: 0.6, ease: [0.22, 1, 0.36, 1] }
         }
         onAnimationComplete={handleAnimationComplete}
       >
@@ -131,7 +115,7 @@ export default function Start() {
           <motion.div
             variants={textVariants}
             animate="transition"
-            transition={{ duration: 1, ease: "easeInOut", times: [0, 0.4, 1] }}
+            transition={{ duration: 1.2, ease: [0.22, 1, 0.36, 1], times: [0, 0.5, 1] }}
             style={{
               position: "absolute",
               fontSize: "14px",
